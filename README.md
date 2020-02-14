@@ -76,6 +76,15 @@ byte fuzzDistortion(int input){
 
 ### Bit Crusher
 
+Lo-fi digital audio effect, producing distortion by reducing bandwidth of audio.  
+
+
+```
+// Bit Crusher
+byte bitCrushBit = 4;
+PORTD = ADCH << bitCrushBit;
+```
+
 ### Tremolo
 Modulating each sample onto an existing low frequency carrier wave (Just like Amplitude Modulation).  
 ```Arduino
