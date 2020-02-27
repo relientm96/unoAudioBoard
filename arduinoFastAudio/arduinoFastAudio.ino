@@ -1,4 +1,4 @@
-// Tremolo Waveform
+// Tremolo Waveform in table 
 #include "modulate.h"
 
 // OLED Library
@@ -9,51 +9,30 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
+// OLED Display Object
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, 4);
 
 // Pinouts
 #define BTN_PIN             8
-byte btnState = 0;
-byte btnCount = 0;
-byte currentState = 0;
-int interruptCounter = 0;
-
 // Constants
 #define PI                  3.14159265359
 #define SAMPLE_RATE         38500
 #define SIZE                250
 
-//**** FLANGING *****//
-#define W_FLANG             PI/SAMPLE_RATE
-#define ALPHA               0.8
+//******* Global Variables ********//
 
-//***** Chorusing *****//
-#define W_CHORUS            PI/SAMPLE_RATE
-
-//**** Phasing *****//
-#define BANDWIDTH           0.2*PI
-// Notch 1 Parameters
-#define A_1                 PI/5
-#define W_1                 PI/SAMPLE_RATE
-#define MIN_FREQ1           PI/5
-// Alpha Stuff
-#define alpha               (float)(1/cos(BANDWIDTH) - tan(BANDWIDTH))
+// Button Variables
+byte btnState = 0;
+byte btnCount = 0;
+byte currentState = 0;
+int interruptCounter = 0;
 
 // Flanging and Chorusing Buffer
 static int buffer[SIZE] = {0};
-  
-// PHASING
-// Buffer length of 2 as max delay is i - 2 in difference eqn
-// Buffer holding inputs
-static int bufferInputs[2] = {0};
-// Buffer holding outputs of first notch filter 
-static int bufferMiddle[2] = {0};
 
-//***********************//
-
-// Common among all
+// Current sample index
 static int current = 0;
-// Store output
+// Store processed output in this variable
 float LeftOutput = 0;
 
 //******* Tremolo Stuff ********//
@@ -98,6 +77,20 @@ byte fuzzDistortion(int input){
 /**
  * Sound from moving a Notch Filter across Frequency Spectrum 
  */
+#define BANDWIDTH           0.2*PI
+// Notch 1 Parameters
+#define A_1                 PI/5
+#define W_1                 PI/SAMPLE_RATE
+#define MIN_FREQ1           PI/5
+// Alpha Stuff
+#define alpha               (float)(1/cos(BANDWIDTH) - tan(BANDWIDTH))
+
+// Buffer length of 2 as max delay is i - 2 in difference eqn
+
+// Buffer holding inputs
+static int bufferInputs[2] = {0};
+// Buffer holding outputs of first notch filter 
+static int bufferMiddle[2] = {0};
 
 byte Phasing(int input){  
   
@@ -141,6 +134,9 @@ byte Phasing(int input){
  * An effect with a chorus sound ( echoes )
  */
 
+#define W_CHORUS            PI/SAMPLE_RATE
+#define ALPHA_CHORUS        0.8
+
 byte Chorusing(int input) {
     
   // Getting Delays based on given equations
@@ -150,10 +146,10 @@ byte Chorusing(int input) {
   // Check if one of them is non negative, apply the non negative term
   if ( (current - Dvarying1 <= 0 ) || (current - Dvarying2 <= 0) ){
     if ( current - Dvarying1 > 0 ) {
-      LeftOutput = input + ALPHA*buffer[current - Dvarying1]; 
+      LeftOutput = input + ALPHA_CHORUS*buffer[current - Dvarying1]; 
     }
     else if ( current - Dvarying2 > 0 ) {
-      LeftOutput = input + ALPHA*buffer[current - Dvarying2]; 
+      LeftOutput = input + ALPHA_CHORUS*buffer[current - Dvarying2]; 
     }
     else {
       // Both indices are negative
@@ -162,7 +158,7 @@ byte Chorusing(int input) {
   }
   else {
     // Apply Chorusing Effect
-    LeftOutput = input + ALPHA*buffer[current - Dvarying1] + ALPHA*buffer[current - Dvarying2];
+    LeftOutput = input + ALPHA_CHORUS*buffer[current - Dvarying1] + ALPHA_CHORUS*buffer[current - Dvarying2];
   }
 
   // Circular Buffer Implementation to store past D values
@@ -177,13 +173,17 @@ byte Chorusing(int input) {
 /**
  * Sound effect with mixing identical signals with one delayed slightly
  */
+ 
+#define W_FLANG             PI/SAMPLE_RATE
+#define ALPHA_FLANG         0.8
+
 byte Flanger(int input){
     
   // Getting Delay based on flanging delay
   int Dvarying = (int)( (SIZE*( 1 - cos((float)(W_FLANG)*current))) );
 
   // Apply Flanging Effect using difference equation
-  LeftOutput = input + ALPHA*buffer[current - Dvarying];
+  LeftOutput = input + ALPHA_FLANG*buffer[current - Dvarying];
 
   // Circular Buffer Implementation to store past D values
   buffer[current] = input;
@@ -320,28 +320,36 @@ ISR(ADC_vect) {
   }
   else if ( btnState == 6 ){
     // Bit Crusher
-    byte bitCrushBit = 4;
+    byte bitCrushBit = 2;
     PORTD = ADCH << bitCrushBit;
   }
   else {
+    // No Effect
     PORTD = ADCH;
   }
-  // check button after isr called 4000 times 
-  if (interruptCounter == 4000){
-    if(digitalRead(BTN_PIN) == LOW){
+}
+
+void loop(){
+  // Check Button and change stage accordingly
+  if(digitalRead(BTN_PIN) == LOW){
+    // Have variabe delay between push button checks to make sure button is really pressed (debouncing)
+    if(currentState >= 4){
+      // for moving from distortion, tremolo and bitCrusher
+       delay(150);
+    }
+    else {
+      // For moving from phasing, chorusing and flanging effects
+      delay(80);
+    }
+    if ( digitalRead(BTN_PIN) == LOW ){
       if ( btnState > 7 ){
         btnState = 0;
       }
       else {
         btnState++;
-      }
+      } 
     }
-    interruptCounter = 0;    
   }
-  interruptCounter++;
-}
-
-void loop(){
   // Only change display OLED when recognise a state change 
   if ( currentState!= btnState ){
     displayState(btnState);    

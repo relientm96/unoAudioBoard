@@ -1,5 +1,5 @@
 # unoAudioBoard
-An Arduino Audio Processor Shield. 
+An Arduino based Audio Processing Shield.  
 Consists of 6 main audio effects:
 
 * Distortion  
@@ -11,16 +11,15 @@ Consists of 6 main audio effects:
 
 So far tested device with an audio source (PC/Phone audio) and with a pre-amped electric guitar.  
 
-<div style="text-align: center">
-    <img src="board.png" alt="Board Picture">
-    <br>
+<div>
+	<img src="media/picCircuit.jpeg"> 
 </div>
 
 ## Hardware 
 ### Schematic Diagram
 
 Link to EasyEda Schematics:
-https://easyeda.com/editor#id=170353e9280f4306be4838444f01964b
+https://easyeda.com/matthewyfy/arduino-audio-processor-shield
 
 <div style="text-align: center">
     <img src="schematic.png" alt="Schematic Diagram" style="width: 80%; height: 100%">
@@ -80,7 +79,7 @@ Lo-fi digital audio effect, producing distortion by reducing bandwidth of audio.
 
 
 ```
-// Bit Crusher
+// Bit Crusher, bit shift incoming audio by some value
 byte bitCrushBit = 4;
 PORTD = ADCH << bitCrushBit;
 ```
